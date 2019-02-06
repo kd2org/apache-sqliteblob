@@ -7,8 +7,9 @@ The idea is to use a SQLite database file as a file storage. This is specially
 useful if you have a lot of small files, eg. images.
 
 The idea is similar to what Facebook does with Haystack :
-https://www.usenix.org/event/osdi10/tech/full_papers/Beaver.pdf
-https://code.fb.com/core-data/needle-in-a-haystack-efficient-storage-of-billions-of-photos/
+
+* [Paper (PDF)](https://www.usenix.org/event/osdi10/tech/full_papers/Beaver.pdf)
+* [Needle in a haystack: efficient storage of billions of photos](https://code.fb.com/core-data/needle-in-a-haystack-efficient-storage-of-billions-of-photos/)
 
 It's just adapted to a smaller scale, without the need of running specialized
 daemons.
@@ -40,7 +41,7 @@ According to my own benchmarks, HTTP performance is about 2 to 5% below serving
 regular files from the filesystem.
 
 I experimented successfully with databases up to 10 GB containing about a dozen
-million files. It worked OK, but I recommend to not exceed 100.000 files or
+million files. It worked OK, but I recommend to not exceed 100,000 files or
 1 GB per SQLite database to keep things simple and fast (just use
 partitioning, or sharding, to keep separate database files).
 
@@ -55,14 +56,14 @@ it gets very large.
 On Debian/Ubuntu just start by installing the `apache2-dev` package:
 
 ```
-apt install apache2-dev
+	apt install apache2-dev
 ```
 
 Usually, just running `make` from the src directory will be enough:
 
 ```
-cd src/
-make
+	cd src/
+	make
 ```
 
 If you want to install the module in the Apache directory you can also run
@@ -76,12 +77,12 @@ Just enable the correct handler in your configuration for the files you want to
 handle. Here is an example:
 
 ```
-<Directory /var/www/images>
-	# Treat filenames ending with ".img" as SQLite blob database
-	AddHandler sqliteblob .img
-	RewriteEngine On
-	RewriteRule /img/((\d)\d+)\.jpg /store_$2.img?id=$1
-</Directory>
+	<Directory /var/www/images>
+		# Treat filenames ending with ".img" as SQLite blob database
+		AddHandler sqliteblob .img
+		RewriteEngine On
+		RewriteRule /img/((\d)\d+)\.jpg /store_$2.img?id=$1
+	</Directory>
 ```
 
 
@@ -92,5 +93,4 @@ To be accepted by this module, the SQLite database file
 
 ## Thanks
 
-This module was written thanks to the help of docs from:
-https://httpd.apache.org/docs/2.4/developer/modguide.html
+This module was written thanks to the help of docs from [Apache](https://httpd.apache.org/docs/2.4/developer/modguide.html)
