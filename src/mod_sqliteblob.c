@@ -84,7 +84,7 @@ static int sqliteblob_handler(request_rec *r)
     int appid;
 
     time_t updated = 0;
-    char *mimetype = NULL;
+    char* mimetype = apr_palloc(r->pool, sizeof(char));
 
     sqlite3_blob *blob = NULL;
 
@@ -166,7 +166,7 @@ static int sqliteblob_handler(request_rec *r)
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         updated = sqlite3_column_int(stmt, 0);
-        mimetype = (char *) sqlite3_column_text(stmt, 1);
+        mimetype = apr_pstrdup(r->pool, sqlite3_column_text(stmt, 1));
     }
 
     if (mimetype == NULL) {
