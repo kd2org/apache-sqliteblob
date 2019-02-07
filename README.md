@@ -89,7 +89,48 @@ handle. Here is an example:
 
 ## Creation of the database
 
-To be accepted by this module, the SQLite database file
+To be accepted by this module, the SQLite database file must have an
+`application_id` set to `0x01021234`. To do that just run:
+
+```
+PRAGMA application_id = 0x01021234;
+```
+
+This is just so it's not possible to use this module to query any random
+SQLite database.
+
+The database must have a table named `blob` containing at least those columns:
+
+* `hash` (TEXT), containg the hash identifier of the file
+* `mimetype` (TEXT), a string containing the file mimetype (eg. `image/jpeg`)
+* `updated` (INTEGER), a UNIX timestamp of the last change to the file (this is
+  used for the `Last-Modified` HTTP header)
+* `content` (BLOB), containing the file itself
+
+You can add more columns if you wish, but if any of these columns is missing,
+a 500 error will be returned.
+
+Here is a simple example of a basic blob database file:
+
+```sql
+PRAGMA application_id = 0x01021234;
+CREATE TABLE IF NOT EXISTS blobs (
+	hash TEXT NOT NULL PRIMARY KEY,
+	mimetype TEXT,
+	updated INT,
+	content BLOB
+);
+```
+
+Then you can just insert files to the database. It is recommanded that you use
+`sqlite3_blob_open` to write the blob to the database, as it is faster than
+using binded parameters.
+
+An example PHP script lies in `src/make-blob-archive.php` to create blob
+archives.
+
+`php make-blob-archive.php test.images images/` will append all files from the
+`images` directory to the `test.images` blob archive.
 
 ## Thanks
 
