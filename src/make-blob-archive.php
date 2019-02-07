@@ -12,11 +12,19 @@ $db = new SQLite3($args[1]);
 
 $has_blob_write = PHP_VERSION_ID >= 70200;
 
-$db->exec('PRAGMA application_id = 0x01021234;');
-$db->exec('CREATE TABLE IF NOT EXISTS blobs (mimetype TEXT, updated INT, filename TEXT, content BLOB);
-	CREATE INDEX IF NOT EXISTS blobs_filename ON blobs (filename);');
+$db->exec('
+PRAGMA application_id = 0x01021234;
+CREATE TABLE IF NOT EXISTS blobs (
+	hash TEXT NOT NULL PRIMARY KEY,
+	mimetype TEXT,
+	updated INT,
+	filename TEXT,
+	content BLOB
+);
+CREATE INDEX IF NOT EXISTS blobs_filename ON blobs (filename);
+');
 
-$insert_stmt = $db->prepare('INSERT INTO blobs VALUES (:mimetype, :updated, :filename, zeroblob(:filesize));');
+$insert_stmt = $db->prepare('INSERT OR IGNORE INTO blobs VALUES (:hash, :mimetype, :updated, :filename, zeroblob(:filesize));');
 $update_stmt = $db->prepare('UPDATE blobs SET content = :content WHERE rowid = :id;');
 
 if (is_file($args[2]))
@@ -48,13 +56,20 @@ function add_file($file)
 
 	printf("Adding %s", $file);
 	$insert_stmt->reset();
+	$insert_stmt->bindValue(':hash', sha1_file($file));
 	$insert_stmt->bindValue(':mimetype', mime_content_type($file));
 	$insert_stmt->bindValue(':updated', filemtime($file));
 	$insert_stmt->bindValue(':filename', ltrim($file, './'));
 	$insert_stmt->bindValue(':filesize', filesize($file));
 	$insert_stmt->execute();
-	echo ".";
 
+	if (!$insert_stmt->execute())
+	{
+		echo "!";
+		return;
+	}
+
+	echo ".";
 	$id = $db->lastInsertRowID();
 
 	if ($has_blob_write)

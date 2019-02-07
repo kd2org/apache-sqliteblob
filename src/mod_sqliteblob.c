@@ -111,11 +111,9 @@ static int sqliteblob_handler(request_rec *r)
 
     ap_args_to_table(r, &GET);
 
-    const char *id = apr_table_get(GET, "id");
+    const char *hash = apr_table_get(GET, "hash");
 
-    if (NULL == id) return HTTP_BAD_REQUEST;
-
-    int rowid = atoi(id);
+    if (NULL == hash) return HTTP_BAD_REQUEST;
 
     // Open DB
     rc = sqlite3_open(filename, &db);
@@ -143,7 +141,7 @@ static int sqliteblob_handler(request_rec *r)
     if (appid != 16912948) {
         sqlite3_finalize(stmt);
         sqlite3_close(db);
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "This file is not a SQLite Blob store: %s", filename);
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "This file is not a SQLite blob store: %s", filename);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -153,29 +151,34 @@ static int sqliteblob_handler(request_rec *r)
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
+    sqlite3_reset(stmt);
     sqlite3_finalize(stmt);
 
-    const char * sql = sqlite3_mprintf("SELECT updated, mimetype FROM blobs WHERE rowid = %d;", rowid);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_int64 rowid;
+    rc = sqlite3_prepare_v2(db, "SELECT rowid, updated, mimetype FROM blobs WHERE hash = ?;", -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "SQLite error in %s: %s", filename, sqlite3_errmsg(db));
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "SQLite query error on %s: %s", filename, sqlite3_errmsg(db));
         sqlite3_close(db);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        updated = sqlite3_column_int(stmt, 0);
-        mimetype = apr_pstrdup(r->pool, sqlite3_column_text(stmt, 1));
-    }
+    sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_STATIC);
 
-    if (mimetype == NULL) {
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         sqlite3_close(db);
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "No rowid %d found in: %s", rowid, filename);
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, APLOGNO(01471) "No hash '%s' found in: %s", hash, filename);
         return HTTP_NOT_FOUND;
     }
 
+    rowid = sqlite3_column_int64(stmt, 0);
+    updated = sqlite3_column_int(stmt, 1);
+    mimetype = apr_pstrdup(r->pool, sqlite3_column_text(stmt, 2));
+
+    sqlite3_reset(stmt);
     sqlite3_finalize(stmt);
 
     // Open blob
